@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>運転日報入力</title>
+  <!-- LINE SDK（LIFFライブラリ）の読み込み -->
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 15px; background: #f4f5f7; color: #333; }
+    h2 { text-align: center; color: #1b2a47; margin-bottom: 5px; }
+    .driver-info { text-align: center; font-weight: bold; color: #007bff; margin-bottom: 15px; font-size: 16px; background: #e9f2ff; padding: 10px; border-radius: 6px; }
+    .stamp-box, .section-box { background: #fff; padding: 15px; border-radius: 6px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .section-title { font-weight: bold; font-size: 15px; color: #1b2a47; border-bottom: 2px solid #007bff; padding-bottom: 5px; margin-bottom: 12px; }
+    .form-group { margin-bottom: 15px; }
+    label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 14px; }
+    input, select, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; background: #fff; }
+    button { width: 100%; padding: 15px; background: #28a745; color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; margin-top: 15px; cursor: pointer; }
+    button:disabled { background: #6c757d; }
+    .row { display: flex; gap: 10px; }
+    .row .form-group { flex: 1; }
+    .stamp-btn { margin-top: 0; font-size: 15px; padding: 12px; }
+    .btn-start { background: #007bff; }
+    .btn-end { background: #dc3545; }
+    .preview-img { width: 100%; max-height: 150px; object-fit: cover; margin-top: 10px; display: none; border-radius: 6px; }
+    .req { color: red; font-size: 12px; margin-left: 3px; }
+  </style>
+</head>
+<body>
+
+  <h2>運転日報入力</h2>
+  <!-- ログイン中のドライバー名表示 -->
+  <div class="driver-info" id="driverDisplay">LINE認証確認中...</div>
+
+  <!-- 打刻＆メーター写真送信エリア -->
+  <div class="stamp-box">
+    <div class="section-title">【出退勤打刻 ＆ メーター撮影】</div>
+    
+    <div class="form-group">
+      <label for="meterVal">走行メーター値 (km)</label>
+      <input type="number" id="meterVal" placeholder="例: 123456">
+    </div>
+
+    <div class="form-group">
+      <label for="meterPhoto">メーター写真撮影</label>
+      <input type="file" id="meterPhoto" accept="image/*" capture="environment" onchange="previewImage(this)">
+      <img id="imgPreview" class="preview-img" alt="プレビュー">
+    </div>
+
+    <div class="row">
+      <button type="button" class="stamp-btn btn-start" onclick="processStamp('出勤')">☀️ 出勤打刻</button>
+      <button type="button" class="stamp-btn btn-end" onclick="processStamp('退勤')">🌙 退勤打刻</button>
+    </div>
+  </div>
+
+  <form id="reportForm">
+    <!-- 基本情報エリア -->
+    <div class="section-box">
+      <div class="section-title">1. 基本情報・時間</div>
+      
+      <div class="form-group">
+        <label for="date">日付<span class="req">※必須</span></label>
+        <input type="date" id="date" required>
+      </div>
+
+      <div class="form-group">
+        <label for="vehicleNo">車両番号<span class="req">※必須</span></label>
+        <select id="vehicleNo" required>
+          <option value="">マスタ読み込み中...</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="workStart">作業（開始）</label>
+          <input type="time" id="workStart" step="1800">
+        </div>
+        <div class="form-group">
+          <label for="workEnd">作業（終了）</label>
+          <input type="time" id="workEnd" step="1800">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="breakStart">休憩（開始）</label>
+          <input type="time" id="breakStart" step="1800">
+        </div>
+        <div class="form-group">
+          <label for="breakEnd">休憩（終了）</label>
+          <input type="time" id="breakEnd" step="1800">
+        </div>
+      </div>
+    </div>
+
+    <!-- 現場・運行詳細エリア -->
+    <div class="section-box">
+      <div class="section-title">2. 現場・運行詳細</div>
+      
+      <div class="form-group">
+        <label for="client">得意先</label>
+        <select id="client">
+          <option value="">マスタ読み込み中...</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="site">現地名<span class="req">※手入力</span></label>
+        <input type="text" id="site" placeholder="例: 〇〇バイパス工事現場">
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="fromLoc">発地<span class="req">※手入力</span></label>
+          <input type="text" id="fromLoc" placeholder="例: 本社プラント">
+        </div>
+        <div class="form-group">
+          <label for="toLoc">着地<span class="req">※手入力</span></label>
+          <input type="text" id="toLoc" placeholder="例: 〇〇作業所">
+        </div>
+      </div>
+    </div>
+
+    <!-- 運搬品目・数量エリア -->
+    <div class="section-box">
+      <div class="section-title">3. 運搬品目・給油</div>
+      
+      <div class="row">
+        <div class="form-group">
+          <label for="itemName">品名</label>
+          <select id="itemName">
+            <option value="">マスタ読み込み中...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="quantity">数量<span class="req">※手入力/スクロール</span></label>
+          <input type="number" id="quantity" step="0.1" placeholder="0">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="fuel">軽油 給油量（L）<span class="req">※給油時のみ</span></label>
+        <input type="number" id="fuel" placeholder="例: 50.5">
+      </div>
+    </div>
+
+    <button type="button" id="submitBtn" onclick="submitData()" disabled>日報を送信する</button>
+  </form>
+
+  <script>
+    let currentLineUserId = "";
+    let currentDriverName = "";
+    let base64Photo = "";
+
+    document.getElementById('date').valueAsDate = new Date();
+
+    window.onload = function() {
+      const MY_LIFF_ID = "2011095122-FuffggN2";
+
+      google.script.run
+        .withSuccessHandler(onMasterLoaded)
+        .getMasterData();
+
+      liff.init({ liffId: MY_LIFF_ID })
+        .then(() => {
+          if (!liff.isLoggedIn()) {
+            liff.login();
+          } else {
+            liff.getProfile().then(profile => {
+              currentLineUserId = profile.userId;
+              google.script.run
+                .withSuccessHandler(onDriverFound)
+                .withFailureHandler(onDriverError)
+                .getDriverInfo(currentLineUserId);
+            });
+          }
+        })
+        .catch(err => {
+          document.getElementById('driverDisplay').innerText = "LIFF通信エラー: " + err;
+        });
+    };
+
+    function onMasterLoaded(res) {
+      if (res.success) {
+        const vehicleSelect = document.getElementById('vehicleNo');
+        vehicleSelect.innerHTML = '<option value="">選択してください</option>';
+        res.vehicles.forEach(v => {
+          vehicleSelect.innerHTML += `<option value="${v}">${v}</option>`;
+        });
+
+        const clientSelect = document.getElementById('client');
+        clientSelect.innerHTML = '<option value="">選択してください</option>';
+        res.clients.forEach(c => {
+          clientSelect.innerHTML += `<option value="${c}">${c}</option>`;
+        });
+
+        const itemSelect = document.getElementById('itemName');
+        itemSelect.innerHTML = '<option value="">選択してください</option>';
+        res.items.forEach(i => {
+          itemSelect.innerHTML += `<option value="${i}">${i}</option>`;
+        });
+      }
+    }
+
+    function onDriverFound(result) {
+      const display = document.getElementById('driverDisplay');
+      const submitBtn = document.getElementById('submitBtn');
+      
+      if (result.success) {
+        currentDriverName = result.driverName;
+        display.innerText = "ドライバー: " + currentDriverName + " 様";
+        display.style.color = "#007bff";
+        submitBtn.disabled = false;
+      } else {
+        display.innerText = "⚠️ " + result.message;
+        display.style.color = "#dc3545";
+        alert(result.message);
+      }
+    }
+
+    function onDriverError(err) {
+      document.getElementById('driverDisplay').innerText = "通信エラーが発生しました。";
+    }
+
+    function previewImage(input) {
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          base64Photo = e.target.result;
+          const img = document.getElementById('imgPreview');
+          img.src = base64Photo;
+          img.style.display = 'block';
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+
+    function processStamp(stampType) {
+      if (!currentDriverName) {
+        alert("ドライバー情報が確認できていません。");
+        return;
+      }
+
+      const meterVal = document.getElementById('meterVal').value;
+
+      if (!liff.scanCodeV2) {
+        alert("QRスキャン機能が利用できません。");
+        return;
+      }
+
+      liff.scanCodeV2()
+        .then(result => {
+          if (result.value) {
+            const scannedVehicleNo = result.value;
+            document.getElementById('vehicleNo').value = scannedVehicleNo;
+
+            alert("画像と打刻データを送信中です。しばらくお待ちください...");
+
+            google.script.run
+              .withSuccessHandler(function(res) {
+                alert(res.message);
+                document.getElementById('meterVal').value = "";
+                document.getElementById('meterPhoto').value = "";
+                document.getElementById('imgPreview').style.display = "none";
+                base64Photo = "";
+              })
+              .recordTimestampWithPhoto({
+                lineUserId: currentLineUserId,
+                driverName: currentDriverName,
+                type: stampType,
+                vehicleNo: scannedVehicleNo,
+                meterValue: meterVal,
+                photoData: base64Photo
+              });
+          }
+        })
+        .catch(err => {
+          console.error("QR読み取りエラー:", err);
+        });
+    }
+
+    function submitData() {
+      if (!currentDriverName) {
+        alert("ドライバー情報が確認できないため送信できません。");
+        return;
+      }
+
+      const vehicleNo = document.getElementById('vehicleNo').value;
+      if (!vehicleNo) {
+        alert("車両番号を選択してください。");
+        return;
+      }
+
+      const formData = {
+        lineUserId: currentLineUserId,
+        driverName: currentDriverName,
+        date: document.getElementById('date').value,
+        vehicleNo: vehicleNo,
+        workStart: document.getElementById('workStart').value,
+        workEnd: document.getElementById('workEnd').value,
+        breakStart: document.getElementById('breakStart').value,
+        breakEnd: document.getElementById('breakEnd').value,
+        client: document.getElementById('client').value,
+        site: document.getElementById('site').value,
+        fromLoc: document.getElementById('fromLoc').value,
+        toLoc: document.getElementById('toLoc').value,
+        itemName: document.getElementById('itemName').value,
+        quantity: document.getElementById('quantity').value,
+        fuel: document.getElementById('fuel').value
+      };
+
+      document.getElementById('submitBtn').disabled = true;
+      document.getElementById('submitBtn').innerText = "送信中...";
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          alert(res.message);
+          document.getElementById('submitBtn').innerText = "日報を送信する";
+          document.getElementById('submitBtn').disabled = false;
+          if (res.success) {
+            liff.closeWindow();
+          }
+        })
+        .saveReportData(formData);
+    }
+  </script>
+</body>
+</html>
