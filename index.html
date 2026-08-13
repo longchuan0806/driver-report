@@ -23,12 +23,12 @@
     .btn-start { background: #007bff; }
     .btn-end { background: #dc3545; }
     .preview-img { width: 100%; max-height: 120px; object-fit: cover; margin-top: 8px; display: none; border-radius: 6px; }
-    .req { color: red; font-size: 11px; margin-left: 2px; }
+    .req { color: red; font-size: 11px; margin-left: 3px; font-weight: normal; }
     .add-check-box { background: #f8f9fa; border: 1px dashed #007bff; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
     .add-check-box label { color: #007bff; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; }
     .add-check-box input[type="checkbox"] { width: 18px; height: 18px; }
     .run-block { display: none; }
-    #runBlock1 { display: block; } /* 1便目は初期表示 */
+    #runBlock1 { display: block; }
     #mainContent { display: none; }
     #initRegisterArea { display: none; }
   </style>
@@ -43,7 +43,7 @@
     <div class="section-title">🔰 初回アカウント連携</div>
     <p style="font-size: 13px; color: #666; margin-bottom: 10px;">お名前を選択して「連携する」を押してください。</p>
     <div class="form-group">
-      <label for="unlinkedNameSelect">お名前を選択</label>
+      <label for="unlinkedNameSelect">お名前を選択<span class="req">※必須</span></label>
       <select id="unlinkedNameSelect"><option value="">読み込み中...</option></select>
     </div>
     <button type="button" onclick="submitRegistration()" style="background: #007bff;">連携して利用を開始する</button>
@@ -69,7 +69,7 @@
     </div>
 
     <form id="reportForm">
-      <!-- ヘッダー基本情報 -->
+      <!-- 基本情報 -->
       <div class="section-box">
         <div class="section-title">1. 基本情報</div>
         <div class="form-group">
@@ -85,8 +85,6 @@
       <!-- 現場・運行詳細 (最大7便) -->
       <div class="section-box">
         <div class="section-title">2. 現場・運行明細（最大7件）</div>
-
-        <!-- 1便〜7便のループ構造 -->
         <div id="runBlocksContainer"></div>
       </div>
 
@@ -95,11 +93,11 @@
         <div class="section-title">3. 休憩時間 ＆ 軽油給油</div>
         <div class="row">
           <div class="form-group">
-            <label for="breakStart">休憩（開始）</label>
+            <label for="breakStart">休憩（開始）<span class="req">※選択</span></label>
             <select id="breakStart" class="time-select"><option value="">選択</option></select>
           </div>
           <div class="form-group">
-            <label for="breakEnd">休憩（終了）</label>
+            <label for="breakEnd">休憩（終了）<span class="req">※選択</span></label>
             <select id="breakEnd" class="time-select"><option value="">選択</option></select>
           </div>
         </div>
@@ -122,11 +120,12 @@
 
     document.getElementById('date').valueAsDate = new Date();
 
-    // 30分刻み時間の選択肢生成 (00:00 〜 23:30)
+    // 5:00 〜 20:00 (30分刻み) の選択肢を生成する関数
     function getTimeOptionsHtml() {
       let html = '<option value="">選択</option>';
-      for (let h = 0; h < 24; h++) {
+      for (let h = 5; h <= 20; h++) {
         for (let m = 0; m < 60; m += 30) {
+          if (h === 20 && m > 0) break; // 20:00で終了
           const hh = String(h).padStart(2, '0');
           const mm = String(m).padStart(2, '0');
           const timeStr = `${hh}:${mm}`;
@@ -136,7 +135,6 @@
       return html;
     }
 
-    // 1〜7便の入力枠をHTML動的生成
     function initRunBlocks() {
       const container = document.getElementById('runBlocksContainer');
       const timeOpts = getTimeOptionsHtml();
@@ -157,43 +155,43 @@
             <div class="run-title">🚛 運行 ${i} 便目</div>
             <div class="row">
               <div class="form-group">
-                <label for="workStart_${i}">作業（開始）</label>
+                <label for="workStart_${i}">作業（開始）<span class="req">※選択</span></label>
                 <select id="workStart_${i}">${timeOpts}</select>
               </div>
               <div class="form-group">
-                <label for="workEnd_${i}">作業（終了）</label>
+                <label for="workEnd_${i}">作業（終了）<span class="req">※選択</span></label>
                 <select id="workEnd_${i}">${timeOpts}</select>
               </div>
             </div>
 
             <div class="form-group">
-              <label for="client_${i}">得意先</label>
+              <label for="client_${i}">得意先<span class="req">※選択</span></label>
               <select id="client_${i}" class="client-master-select"><option value="">読み込み中...</option></select>
             </div>
 
             <div class="form-group">
-              <label for="site_${i}">現地名</label>
+              <label for="site_${i}">現地名<span class="req">※手入力</span></label>
               <input type="text" id="site_${i}" placeholder="例: 〇〇作業所">
             </div>
 
             <div class="row">
               <div class="form-group">
-                <label for="fromLoc_${i}">発地</label>
-                <input type="text" id="fromLoc_${i}" placeholder="例: 本社">
+                <label for="fromLoc_${i}">発地<span class="req">※手入力</span></label>
+                <input type="text" id="fromLoc_${i}" placeholder="例: 本社プラント">
               </div>
               <div class="form-group">
-                <label for="toLoc_${i}">着地</label>
-                <input type="text" id="toLoc_${i}" placeholder="例: 現場A">
+                <label for="toLoc_${i}">着地<span class="req">※手入力</span></label>
+                <input type="text" id="toLoc_${i}" placeholder="例: 〇〇現場">
               </div>
             </div>
 
             <div class="row">
               <div class="form-group">
-                <label for="itemName_${i}">品名</label>
+                <label for="itemName_${i}">品名<span class="req">※選択</span></label>
                 <select id="itemName_${i}" class="item-master-select"><option value="">読み込み中...</option></select>
               </div>
               <div class="form-group">
-                <label for="quantity_${i}">数量</label>
+                <label for="quantity_${i}">数量<span class="req">※手入力/スクロール</span></label>
                 <input type="number" id="quantity_${i}" step="0.1" placeholder="0">
               </div>
             </div>
@@ -202,12 +200,10 @@
       }
       container.innerHTML = html;
 
-      // 休憩時間の選択肢をセット
       document.getElementById('breakStart').innerHTML = timeOpts;
       document.getElementById('breakEnd').innerHTML = timeOpts;
     }
 
-    // 便数の表示切り替え制御
     function toggleRunBlock(num) {
       const isChecked = document.getElementById(`toggleRun${num}`).checked;
       const block = document.getElementById(`runBlock${num}`);
@@ -285,18 +281,15 @@
         body: JSON.stringify({ action: "getMasterData" })
       }).then(res => res.json()).then(res => {
         if (res.success) {
-          // 車両マスタの反映
           const vehicleSelect = document.getElementById('vehicleNo');
           vehicleSelect.innerHTML = '<option value="">選択してください</option>';
           res.vehicles.forEach(v => { vehicleSelect.innerHTML += `<option value="${v}">${v}</option>`; });
 
-          // 得意先マスタ（全便へ反映）
           document.querySelectorAll('.client-master-select').forEach(sel => {
             sel.innerHTML = '<option value="">選択してください</option>';
             res.clients.forEach(c => { sel.innerHTML += `<option value="${c}">${c}</option>`; });
           });
 
-          // 品名マスタ（全便へ反映）
           document.querySelectorAll('.item-master-select').forEach(sel => {
             sel.innerHTML = '<option value="">選択してください</option>';
             res.items.forEach(i => { sel.innerHTML += `<option value="${i}">${i}</option>`; });
@@ -356,7 +349,6 @@
       const vehicleNo = document.getElementById('vehicleNo').value;
       if (!vehicleNo) { alert("車両番号を選択してください。"); return; }
 
-      // 1〜7便の入力データを収集
       const runs = [];
       for (let i = 1; i <= 7; i++) {
         const block = document.getElementById(`runBlock${i}`);
