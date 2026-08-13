@@ -125,7 +125,7 @@
       let html = '<option value="">選択</option>';
       for (let h = 5; h <= 20; h++) {
         for (let m = 0; m < 60; m += 30) {
-          if (h === 20 && m > 0) break; // 20:00で終了
+          if (h === 20 && m > 0) break;
           const hh = String(h).padStart(2, '0');
           const mm = String(m).padStart(2, '0');
           const timeStr = `${hh}:${mm}`;
