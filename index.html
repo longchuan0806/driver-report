@@ -117,10 +117,10 @@
     let currentLineUserId = "";
     let currentDriverName = "";
     let base64Photo = "";
+    let globalClientItemsMap = {}; // 得意先と品名の連動用マップ保持変数
 
     document.getElementById('date').valueAsDate = new Date();
 
-    // 5:00 〜 20:00 (30分刻み) の選択肢を生成する関数
     function getTimeOptionsHtml() {
       let html = '<option value="">選択</option>';
       for (let h = 5; h <= 20; h++) {
@@ -166,7 +166,9 @@
 
             <div class="form-group">
               <label for="client_${i}">得意先<span class="req">※選択</span></label>
-              <select id="client_${i}" class="client-master-select"><option value="">読み込み中...</option></select>
+              <select id="client_${i}" class="client-master-select" onchange="onClientChanged(${i})">
+                <option value="">読み込み中...</option>
+              </select>
             </div>
 
             <div class="form-group">
@@ -187,8 +189,10 @@
 
             <div class="row">
               <div class="form-group">
-                <label for="itemName_${i}">品名<span class="req">※選択</span></label>
-                <select id="itemName_${i}" class="item-master-select"><option value="">読み込み中...</option></select>
+                <label for="itemName_${i}">品名<span class="req">※得意先選択後に自動表示</span></label>
+                <select id="itemName_${i}" class="item-master-select">
+                  <option value="">まず得意先を選択してください</option>
+                </select>
               </div>
               <div class="form-group">
                 <label for="quantity_${i}">数量<span class="req">※手入力/スクロール</span></label>
@@ -202,6 +206,29 @@
 
       document.getElementById('breakStart').innerHTML = timeOpts;
       document.getElementById('breakEnd').innerHTML = timeOpts;
+    }
+
+    // 得意先が選択された際に、その得意先に紐付く品名のみを動的セットする関数
+    function onClientChanged(runIndex) {
+      const selectedClient = document.getElementById(`client_${runIndex}`).value;
+      const itemSelect = document.getElementById(`itemName_${runIndex}`);
+      
+      itemSelect.innerHTML = "";
+
+      if (!selectedClient) {
+        itemSelect.innerHTML = '<option value="">まず得意先を選択してください</option>';
+        return;
+      }
+
+      const availableItems = globalClientItemsMap[selectedClient] || [];
+      if (availableItems.length === 0) {
+        itemSelect.innerHTML = '<option value="">(登録品名なし)</option>';
+      } else {
+        itemSelect.innerHTML = '<option value="">品名を選択してください</option>';
+        availableItems.forEach(item => {
+          itemSelect.innerHTML += `<option value="${item}">${item}</option>`;
+        });
+      }
     }
 
     function toggleRunBlock(num) {
@@ -281,18 +308,18 @@
         body: JSON.stringify({ action: "getMasterData" })
       }).then(res => res.json()).then(res => {
         if (res.success) {
+          // 車両選択肢の反映
           const vehicleSelect = document.getElementById('vehicleNo');
           vehicleSelect.innerHTML = '<option value="">選択してください</option>';
           res.vehicles.forEach(v => { vehicleSelect.innerHTML += `<option value="${v}">${v}</option>`; });
 
+          // 得意先と品名の連動マップをグローバル変数に保存
+          globalClientItemsMap = res.clientItemsMap || {};
+
+          // 得意先選択肢を全便にセット
           document.querySelectorAll('.client-master-select').forEach(sel => {
             sel.innerHTML = '<option value="">選択してください</option>';
             res.clients.forEach(c => { sel.innerHTML += `<option value="${c}">${c}</option>`; });
-          });
-
-          document.querySelectorAll('.item-master-select').forEach(sel => {
-            sel.innerHTML = '<option value="">選択してください</option>';
-            res.items.forEach(i => { sel.innerHTML += `<option value="${i}">${i}</option>`; });
           });
         }
       });
