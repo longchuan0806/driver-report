@@ -33,10 +33,10 @@
   <h2>運転日報入力</h2>
   <div class="driver-info" id="driverDisplay">LINE認証確認中...</div>
 
-  <!-- 初回LINE連携エリア（LINE ID未紐付け時のみ自動表示） -->
+  <!-- 初回アカウント連携エリア -->
   <div class="init-box" id="initRegisterArea">
     <div class="section-title">🔰 初回アカウント連携</div>
-    <p style="font-size: 14px; color: #666; margin-bottom: 15px;">あなたの名前を選択して「登録・連携する」を押してください。</p>
+    <p style="font-size: 14px; color: #666; margin-bottom: 15px;">お名前を選択して「連携する」を押してください。</p>
     <div class="form-group">
       <label for="unlinkedNameSelect">お名前を選択</label>
       <select id="unlinkedNameSelect">
@@ -165,9 +165,6 @@
   </div>
 
   <script>
-    // ★ご自身のGASのデプロイWebアプリURL（https://script.google.com/macros/s/.../exec）を設定してください★
-    const GAS_WEBAPP_URL = "https://script.google.com/macros/s/YOUR_GAS_DEPLOYED_URL/exec";
-
     let currentLineUserId = "";
     let currentDriverName = "";
     let base64Photo = "";
@@ -193,30 +190,32 @@
         });
     };
 
-    // LINE IDの照合チェック
     function checkUserRegistration(lineUserId) {
-      fetch(GAS_WEBAPP_URL + "?action=getDriverInfo&lineUserId=" + lineUserId)
-        .then(res => res.json())
-        .then(result => {
-          const display = document.getElementById('driverDisplay');
-          if (result.registered) {
-            currentDriverName = result.driverName;
-            display.innerText = "ドライバー: " + currentDriverName + " 様";
-            document.getElementById('mainContent').style.display = "block";
-            loadMasterData();
-          } else {
-            display.innerText = "未連携アカウントです";
-            document.getElementById('initRegisterArea').style.display = "block";
-            const select = document.getElementById('unlinkedNameSelect');
-            select.innerHTML = '<option value="">あなたの名前を選択してください</option>';
-            result.unlinkedNames.forEach(name => {
-              select.innerHTML += `<option value="${name}">${name}</option>`;
-            });
-          }
-        });
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(onDriverChecked)
+          .getDriverInfo(lineUserId);
+      }
     }
 
-    // 初回登録実行
+    function onDriverChecked(result) {
+      const display = document.getElementById('driverDisplay');
+      if (result.registered) {
+        currentDriverName = result.driverName;
+        display.innerText = "ドライバー: " + currentDriverName + " 様";
+        document.getElementById('mainContent').style.display = "block";
+        loadMasterData();
+      } else {
+        display.innerText = "未連携アカウントです";
+        document.getElementById('initRegisterArea').style.display = "block";
+        const select = document.getElementById('unlinkedNameSelect');
+        select.innerHTML = '<option value="">あなたの名前を選択してください</option>';
+        result.unlinkedNames.forEach(name => {
+          select.innerHTML += `<option value="${name}">${name}</option>`;
+        });
+      }
+    }
+
     function submitRegistration() {
       const selectedName = document.getElementById('unlinkedNameSelect').value;
       if (!selectedName) {
@@ -224,18 +223,17 @@
         return;
       }
       
-      fetch(GAS_WEBAPP_URL + "?action=registerLineUserId&empName=" + encodeURIComponent(selectedName) + "&lineUserId=" + currentLineUserId)
-        .then(res => res.json())
-        .then(res => {
+      google.script.run
+        .withSuccessHandler(function(res) {
           alert(res.message);
           if (res.success) location.reload();
-        });
+        })
+        .registerLineUserId(selectedName, currentLineUserId);
     }
 
     function loadMasterData() {
-      fetch(GAS_WEBAPP_URL + "?action=getMasterData")
-        .then(res => res.json())
-        .then(res => {
+      google.script.run
+        .withSuccessHandler(function(res) {
           if (res.success) {
             const vehicleSelect = document.getElementById('vehicleNo');
             vehicleSelect.innerHTML = '<option value="">選択してください</option>';
@@ -249,7 +247,8 @@
             itemSelect.innerHTML = '<option value="">選択してください</option>';
             res.items.forEach(i => { itemSelect.innerHTML += `<option value="${i}">${i}</option>`; });
           }
-        });
+        })
+        .getMasterData();
     }
 
     function previewImage(input) {
@@ -276,24 +275,22 @@
           document.getElementById('vehicleNo').value = scannedVehicleNo;
           alert("画像と打刻データを送信中です...");
 
-          fetch(GAS_WEBAPP_URL, {
-            method: "POST",
-            body: JSON.stringify({
-              action: "recordTimestampWithPhoto",
+          google.script.run
+            .withSuccessHandler(function(res) {
+              alert(res.message);
+              document.getElementById('meterVal').value = "";
+              document.getElementById('meterPhoto').value = "";
+              document.getElementById('imgPreview').style.display = "none";
+              base64Photo = "";
+            })
+            .recordTimestampWithPhoto({
               lineUserId: currentLineUserId,
               driverName: currentDriverName,
               type: stampType,
               vehicleNo: scannedVehicleNo,
               meterValue: meterVal,
               photoData: base64Photo
-            })
-          }).then(res => res.json()).then(res => {
-            alert(res.message);
-            document.getElementById('meterVal').value = "";
-            document.getElementById('meterPhoto').value = "";
-            document.getElementById('imgPreview').style.display = "none";
-            base64Photo = "";
-          });
+            });
         }
       });
     }
@@ -304,7 +301,6 @@
       if (!vehicleNo) { alert("車両番号を選択してください。"); return; }
 
       const formData = {
-        action: "saveReportData",
         lineUserId: currentLineUserId,
         driverName: currentDriverName,
         date: document.getElementById('date').value,
@@ -325,15 +321,14 @@
       document.getElementById('submitBtn').disabled = true;
       document.getElementById('submitBtn').innerText = "送信中...";
 
-      fetch(GAS_WEBAPP_URL, {
-        method: "POST",
-        body: JSON.stringify(formData)
-      }).then(res => res.json()).then(res => {
-        alert(res.message);
-        document.getElementById('submitBtn').innerText = "日報を送信する";
-        document.getElementById('submitBtn').disabled = false;
-        if (res.success) liff.closeWindow();
-      });
+      google.script.run
+        .withSuccessHandler(function(res) {
+          alert(res.message);
+          document.getElementById('submitBtn').innerText = "日報を送信する";
+          document.getElementById('submitBtn').disabled = false;
+          if (res.success) liff.closeWindow();
+        })
+        .saveReportData(formData);
     }
   </script>
 </body>
