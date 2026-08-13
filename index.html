@@ -4,26 +4,31 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>運転日報入力</title>
-  <!-- LINE SDK（LIFFライブラリ）の読み込み -->
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 15px; background: #f4f5f7; color: #333; }
-    h2 { text-align: center; color: #1b2a47; margin-bottom: 5px; }
-    .driver-info { text-align: center; font-weight: bold; color: #007bff; margin-bottom: 15px; font-size: 16px; background: #e9f2ff; padding: 10px; border-radius: 6px; }
-    .stamp-box, .section-box, .init-box { background: #fff; padding: 15px; border-radius: 6px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    .section-title { font-weight: bold; font-size: 15px; color: #1b2a47; border-bottom: 2px solid #007bff; padding-bottom: 5px; margin-bottom: 12px; }
-    .form-group { margin-bottom: 15px; }
-    label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 14px; }
-    input, select, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; background: #fff; }
-    button { width: 100%; padding: 15px; background: #28a745; color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; margin-top: 15px; cursor: pointer; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 12px; background: #f4f5f7; color: #333; }
+    h2 { text-align: center; color: #1b2a47; margin-bottom: 5px; font-size: 20px; }
+    .driver-info { text-align: center; font-weight: bold; color: #007bff; margin-bottom: 12px; font-size: 15px; background: #e9f2ff; padding: 8px; border-radius: 6px; }
+    .stamp-box, .section-box, .init-box, .run-card { background: #fff; padding: 12px; border-radius: 6px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .section-title { font-weight: bold; font-size: 15px; color: #1b2a47; border-bottom: 2px solid #007bff; padding-bottom: 4px; margin-bottom: 10px; }
+    .run-title { font-weight: bold; font-size: 14px; color: #28a745; background: #e8f5e9; padding: 6px 10px; border-radius: 4px; margin-bottom: 10px; }
+    .form-group { margin-bottom: 10px; }
+    label { font-weight: bold; display: block; margin-bottom: 3px; font-size: 13px; }
+    input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 15px; background: #fff; }
+    button { width: 100%; padding: 14px; background: #28a745; color: white; border: none; border-radius: 6px; font-size: 17px; font-weight: bold; margin-top: 10px; cursor: pointer; }
     button:disabled { background: #6c757d; }
-    .row { display: flex; gap: 10px; }
+    .row { display: flex; gap: 8px; }
     .row .form-group { flex: 1; }
-    .stamp-btn { margin-top: 0; font-size: 15px; padding: 12px; }
+    .stamp-btn { margin-top: 0; font-size: 14px; padding: 10px; }
     .btn-start { background: #007bff; }
     .btn-end { background: #dc3545; }
-    .preview-img { width: 100%; max-height: 150px; object-fit: cover; margin-top: 10px; display: none; border-radius: 6px; }
-    .req { color: red; font-size: 12px; margin-left: 3px; }
+    .preview-img { width: 100%; max-height: 120px; object-fit: cover; margin-top: 8px; display: none; border-radius: 6px; }
+    .req { color: red; font-size: 11px; margin-left: 2px; }
+    .add-check-box { background: #f8f9fa; border: 1px dashed #007bff; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
+    .add-check-box label { color: #007bff; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; }
+    .add-check-box input[type="checkbox"] { width: 18px; height: 18px; }
+    .run-block { display: none; }
+    #runBlock1 { display: block; } /* 1便目は初期表示 */
     #mainContent { display: none; }
     #initRegisterArea { display: none; }
   </style>
@@ -33,36 +38,30 @@
   <h2>運転日報入力</h2>
   <div class="driver-info" id="driverDisplay">LINE認証確認中...</div>
 
-  <!-- 初回アカウント連携エリア -->
+  <!-- 初回連携表示 -->
   <div class="init-box" id="initRegisterArea">
     <div class="section-title">🔰 初回アカウント連携</div>
-    <p style="font-size: 14px; color: #666; margin-bottom: 15px;">お名前を選択して「連携する」を押してください。</p>
+    <p style="font-size: 13px; color: #666; margin-bottom: 10px;">お名前を選択して「連携する」を押してください。</p>
     <div class="form-group">
       <label for="unlinkedNameSelect">お名前を選択</label>
-      <select id="unlinkedNameSelect">
-        <option value="">読み込み中...</option>
-      </select>
+      <select id="unlinkedNameSelect"><option value="">読み込み中...</option></select>
     </div>
     <button type="button" onclick="submitRegistration()" style="background: #007bff;">連携して利用を開始する</button>
   </div>
 
-  <!-- メイン日報入力エリア -->
   <div id="mainContent">
     <!-- 打刻＆メーター写真送信エリア -->
     <div class="stamp-box">
       <div class="section-title">【出退勤打刻 ＆ メーター撮影】</div>
-      
       <div class="form-group">
         <label for="meterVal">走行メーター値 (km)</label>
         <input type="number" id="meterVal" placeholder="例: 123456">
       </div>
-
       <div class="form-group">
         <label for="meterPhoto">メーター写真撮影</label>
         <input type="file" id="meterPhoto" accept="image/*" capture="environment" onchange="previewImage(this)">
         <img id="imgPreview" class="preview-img" alt="プレビュー">
       </div>
-
       <div class="row">
         <button type="button" class="stamp-btn btn-start" onclick="processStamp('出勤')">☀️ 出勤打刻</button>
         <button type="button" class="stamp-btn btn-end" onclick="processStamp('退勤')">🌙 退勤打刻</button>
@@ -70,93 +69,43 @@
     </div>
 
     <form id="reportForm">
-      <!-- 基本情報エリア -->
+      <!-- ヘッダー基本情報 -->
       <div class="section-box">
-        <div class="section-title">1. 基本情報・時間</div>
-        
+        <div class="section-title">1. 基本情報</div>
         <div class="form-group">
           <label for="date">日付<span class="req">※必須</span></label>
           <input type="date" id="date" required>
         </div>
-
         <div class="form-group">
           <label for="vehicleNo">車両番号<span class="req">※必須</span></label>
-          <select id="vehicleNo" required>
-            <option value="">マスタ読み込み中...</option>
-          </select>
+          <select id="vehicleNo" required><option value="">マスタ読み込み中...</option></select>
         </div>
+      </div>
 
-        <div class="row">
-          <div class="form-group">
-            <label for="workStart">作業（開始）</label>
-            <input type="time" id="workStart" step="1800">
-          </div>
-          <div class="form-group">
-            <label for="workEnd">作業（終了）</label>
-            <input type="time" id="workEnd" step="1800">
-          </div>
-        </div>
+      <!-- 現場・運行詳細 (最大7便) -->
+      <div class="section-box">
+        <div class="section-title">2. 現場・運行明細（最大7件）</div>
 
+        <!-- 1便〜7便のループ構造 -->
+        <div id="runBlocksContainer"></div>
+      </div>
+
+      <!-- 休憩時間 ＆ 給油（最後尾） -->
+      <div class="section-box">
+        <div class="section-title">3. 休憩時間 ＆ 軽油給油</div>
         <div class="row">
           <div class="form-group">
             <label for="breakStart">休憩（開始）</label>
-            <input type="time" id="breakStart" step="1800">
+            <select id="breakStart" class="time-select"><option value="">選択</option></select>
           </div>
           <div class="form-group">
             <label for="breakEnd">休憩（終了）</label>
-            <input type="time" id="breakEnd" step="1800">
+            <select id="breakEnd" class="time-select"><option value="">選択</option></select>
           </div>
         </div>
-      </div>
-
-      <!-- 現場・運行詳細エリア -->
-      <div class="section-box">
-        <div class="section-title">2. 現場・運行詳細</div>
-        
-        <div class="form-group">
-          <label for="client">得意先</label>
-          <select id="client">
-            <option value="">マスタ読み込み中...</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="site">現地名<span class="req">※手入力</span></label>
-          <input type="text" id="site" placeholder="例: 〇〇バイパス工事現場">
-        </div>
-
-        <div class="row">
-          <div class="form-group">
-            <label for="fromLoc">発地<span class="req">※手入力</span></label>
-            <input type="text" id="fromLoc" placeholder="例: 本社プラント">
-          </div>
-          <div class="form-group">
-            <label for="toLoc">着地<span class="req">※手入力</span></label>
-            <input type="text" id="toLoc" placeholder="例: 〇〇作業所">
-          </div>
-        </div>
-      </div>
-
-      <!-- 運搬品目・数量エリア -->
-      <div class="section-box">
-        <div class="section-title">3. 運搬品目・給油</div>
-        
-        <div class="row">
-          <div class="form-group">
-            <label for="itemName">品名</label>
-            <select id="itemName">
-              <option value="">マスタ読み込み中...</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="quantity">数量<span class="req">※手入力/スクロール</span></label>
-            <input type="number" id="quantity" step="0.1" placeholder="0">
-          </div>
-        </div>
-
         <div class="form-group">
           <label for="fuel">軽油 給油量（L）<span class="req">※給油時のみ</span></label>
-          <input type="number" id="fuel" placeholder="例: 50.5">
+          <input type="number" id="fuel" step="0.1" placeholder="例: 50.5">
         </div>
       </div>
 
@@ -165,7 +114,6 @@
   </div>
 
   <script>
-    // ご提示いただいたGASのWebアプリURLを設定済み
     const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbx3-Pojk0h2_ekHbiOVqtaWAxxhgDeNtkMbPE5J0sdTadPOOUD_iabxtkDeN2n29b9nGQ/exec";
 
     let currentLineUserId = "";
@@ -174,7 +122,108 @@
 
     document.getElementById('date').valueAsDate = new Date();
 
+    // 30分刻み時間の選択肢生成 (00:00 〜 23:30)
+    function getTimeOptionsHtml() {
+      let html = '<option value="">選択</option>';
+      for (let h = 0; h < 24; h++) {
+        for (let m = 0; m < 60; m += 30) {
+          const hh = String(h).padStart(2, '0');
+          const mm = String(m).padStart(2, '0');
+          const timeStr = `${hh}:${mm}`;
+          html += `<option value="${timeStr}">${timeStr}</option>`;
+        }
+      }
+      return html;
+    }
+
+    // 1〜7便の入力枠をHTML動的生成
+    function initRunBlocks() {
+      const container = document.getElementById('runBlocksContainer');
+      const timeOpts = getTimeOptionsHtml();
+      let html = "";
+
+      for (let i = 1; i <= 7; i++) {
+        html += `
+          ${i > 1 ? `
+            <div class="add-check-box" id="addCheckBox${i}" style="${i > 2 ? 'display:none;' : ''}">
+              <label>
+                <input type="checkbox" id="toggleRun${i}" onchange="toggleRunBlock(${i})">
+                ➕ ${i}便目の運行データを追加する
+              </label>
+            </div>
+          ` : ''}
+
+          <div class="run-card run-block" id="runBlock${i}">
+            <div class="run-title">🚛 運行 ${i} 便目</div>
+            <div class="row">
+              <div class="form-group">
+                <label for="workStart_${i}">作業（開始）</label>
+                <select id="workStart_${i}">${timeOpts}</select>
+              </div>
+              <div class="form-group">
+                <label for="workEnd_${i}">作業（終了）</label>
+                <select id="workEnd_${i}">${timeOpts}</select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="client_${i}">得意先</label>
+              <select id="client_${i}" class="client-master-select"><option value="">読み込み中...</option></select>
+            </div>
+
+            <div class="form-group">
+              <label for="site_${i}">現地名</label>
+              <input type="text" id="site_${i}" placeholder="例: 〇〇作業所">
+            </div>
+
+            <div class="row">
+              <div class="form-group">
+                <label for="fromLoc_${i}">発地</label>
+                <input type="text" id="fromLoc_${i}" placeholder="例: 本社">
+              </div>
+              <div class="form-group">
+                <label for="toLoc_${i}">着地</label>
+                <input type="text" id="toLoc_${i}" placeholder="例: 現場A">
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="form-group">
+                <label for="itemName_${i}">品名</label>
+                <select id="itemName_${i}" class="item-master-select"><option value="">読み込み中...</option></select>
+              </div>
+              <div class="form-group">
+                <label for="quantity_${i}">数量</label>
+                <input type="number" id="quantity_${i}" step="0.1" placeholder="0">
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      container.innerHTML = html;
+
+      // 休憩時間の選択肢をセット
+      document.getElementById('breakStart').innerHTML = timeOpts;
+      document.getElementById('breakEnd').innerHTML = timeOpts;
+    }
+
+    // 便数の表示切り替え制御
+    function toggleRunBlock(num) {
+      const isChecked = document.getElementById(`toggleRun${num}`).checked;
+      const block = document.getElementById(`runBlock${num}`);
+      const nextCheckBox = document.getElementById(`addCheckBox${num + 1}`);
+
+      if (isChecked) {
+        block.style.display = "block";
+        if (nextCheckBox) nextCheckBox.style.display = "block";
+      } else {
+        block.style.display = "none";
+        if (nextCheckBox) nextCheckBox.style.display = "none";
+      }
+    }
+
     window.onload = function() {
+      initRunBlocks();
       const MY_LIFF_ID = "2011095122-FuffggN2";
 
       liff.init({ liffId: MY_LIFF_ID })
@@ -215,22 +264,16 @@
             select.innerHTML += `<option value="${name}">${name}</option>`;
           });
         }
-      })
-      .catch(err => {
-        document.getElementById('driverDisplay').innerText = "通信エラーが発生しました";
       });
     }
 
     function submitRegistration() {
       const selectedName = document.getElementById('unlinkedNameSelect').value;
       if (!selectedName) { alert("お名前を選択してください。"); return; }
-      
       fetch(GAS_WEBAPP_URL, {
         method: "POST",
         body: JSON.stringify({ action: "registerLineUserId", empName: selectedName, lineUserId: currentLineUserId })
-      })
-      .then(res => res.json())
-      .then(res => {
+      }).then(res => res.json()).then(res => {
         alert(res.message);
         if (res.success) location.reload();
       });
@@ -240,21 +283,24 @@
       fetch(GAS_WEBAPP_URL, {
         method: "POST",
         body: JSON.stringify({ action: "getMasterData" })
-      })
-      .then(res => res.json())
-      .then(res => {
+      }).then(res => res.json()).then(res => {
         if (res.success) {
+          // 車両マスタの反映
           const vehicleSelect = document.getElementById('vehicleNo');
           vehicleSelect.innerHTML = '<option value="">選択してください</option>';
           res.vehicles.forEach(v => { vehicleSelect.innerHTML += `<option value="${v}">${v}</option>`; });
 
-          const clientSelect = document.getElementById('client');
-          clientSelect.innerHTML = '<option value="">選択してください</option>';
-          res.clients.forEach(c => { clientSelect.innerHTML += `<option value="${c}">${c}</option>`; });
+          // 得意先マスタ（全便へ反映）
+          document.querySelectorAll('.client-master-select').forEach(sel => {
+            sel.innerHTML = '<option value="">選択してください</option>';
+            res.clients.forEach(c => { sel.innerHTML += `<option value="${c}">${c}</option>`; });
+          });
 
-          const itemSelect = document.getElementById('itemName');
-          itemSelect.innerHTML = '<option value="">選択してください</option>';
-          res.items.forEach(i => { itemSelect.innerHTML += `<option value="${i}">${i}</option>`; });
+          // 品名マスタ（全便へ反映）
+          document.querySelectorAll('.item-master-select').forEach(sel => {
+            sel.innerHTML = '<option value="">選択してください</option>';
+            res.items.forEach(i => { sel.innerHTML += `<option value="${i}">${i}</option>`; });
+          });
         }
       });
     }
@@ -294,9 +340,7 @@
               meterValue: meterVal,
               photoData: base64Photo
             })
-          })
-          .then(res => res.json())
-          .then(res => {
+          }).then(res => res.json()).then(res => {
             alert(res.message);
             document.getElementById('meterVal').value = "";
             document.getElementById('meterPhoto').value = "";
@@ -312,23 +356,39 @@
       const vehicleNo = document.getElementById('vehicleNo').value;
       if (!vehicleNo) { alert("車両番号を選択してください。"); return; }
 
+      // 1〜7便の入力データを収集
+      const runs = [];
+      for (let i = 1; i <= 7; i++) {
+        const block = document.getElementById(`runBlock${i}`);
+        if (block && block.style.display !== "none") {
+          runs.push({
+            workStart: document.getElementById(`workStart_${i}`).value,
+            workEnd: document.getElementById(`workEnd_${i}`).value,
+            client: document.getElementById(`client_${i}`).value,
+            site: document.getElementById(`site_${i}`).value,
+            fromLoc: document.getElementById(`fromLoc_${i}`).value,
+            toLoc: document.getElementById(`toLoc_${i}`).value,
+            itemName: document.getElementById(`itemName_${i}`).value,
+            quantity: document.getElementById(`quantity_${i}`).value
+          });
+        }
+      }
+
+      if (runs.length === 0) {
+        alert("少なくとも1便分の運行データを入力してください。");
+        return;
+      }
+
       const formData = {
         action: "saveReportData",
         lineUserId: currentLineUserId,
         driverName: currentDriverName,
         date: document.getElementById('date').value,
         vehicleNo: vehicleNo,
-        workStart: document.getElementById('workStart').value,
-        workEnd: document.getElementById('workEnd').value,
         breakStart: document.getElementById('breakStart').value,
         breakEnd: document.getElementById('breakEnd').value,
-        client: document.getElementById('client').value,
-        site: document.getElementById('site').value,
-        fromLoc: document.getElementById('fromLoc').value,
-        toLoc: document.getElementById('toLoc').value,
-        itemName: document.getElementById('itemName').value,
-        quantity: document.getElementById('quantity').value,
-        fuel: document.getElementById('fuel').value
+        fuel: document.getElementById('fuel').value,
+        runs: runs
       };
 
       document.getElementById('submitBtn').disabled = true;
@@ -337,9 +397,7 @@
       fetch(GAS_WEBAPP_URL, {
         method: "POST",
         body: JSON.stringify(formData)
-      })
-      .then(res => res.json())
-      .then(res => {
+      }).then(res => res.json()).then(res => {
         alert(res.message);
         document.getElementById('submitBtn').innerText = "日報を送信する";
         document.getElementById('submitBtn').disabled = false;
