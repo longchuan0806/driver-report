@@ -16,7 +16,7 @@
     label { font-weight: bold; display: block; margin-bottom: 3px; font-size: 13px; }
     input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 15px; background: #fff; }
     button { width: 100%; padding: 14px; background: #28a745; color: white; border: none; border-radius: 6px; font-size: 17px; font-weight: bold; margin-top: 10px; cursor: pointer; }
-    button:disabled { background: #6c757d; }
+    button:disabled { background: #b0bec5 !important; cursor: not-allowed; }
     .row { display: flex; gap: 8px; }
     .row .form-group { flex: 1; }
     .stamp-btn { margin-top: 0; font-size: 14px; padding: 10px; }
@@ -31,6 +31,10 @@
     #runBlock1 { display: block; }
     #mainContent { display: none; }
     #initRegisterArea { display: none; }
+    #reportArea { display: none; } /* 出勤打刻完了まで非表示 */
+    .status-badge { font-size: 12px; padding: 3px 8px; border-radius: 4px; font-weight: normal; margin-left: 5px; }
+    .badge-ok { background: #d4edda; color: #155724; }
+    .badge-ng { background: #f8d7da; color: #721c24; }
     .draft-msg { font-size: 12px; color: #28a745; text-align: center; margin-top: 4px; display: none; }
   </style>
 </head>
@@ -51,81 +55,98 @@
   </div>
 
   <div id="mainContent">
-    <!-- 打刻エリア（始業・終業メーター値） -->
+    <!-- 打刻エリア（出勤・退勤ゲート） -->
     <div class="stamp-box">
-      <div class="section-title">【出退勤打刻 ＆ メーター入力】</div>
-      <div class="row">
+      <div class="section-title">
+        【出退勤打刻 ＆ メーター入力】
+      </div>
+
+      <!-- 出勤打刻ブロック -->
+      <div style="background: #eef6ff; padding: 10px; border-radius: 6px; margin-bottom: 12px;">
+        <div style="font-weight: bold; font-size: 14px; color: #007bff; margin-bottom: 6px;">
+          ☀️ 朝の出勤手続き
+          <span id="startStatusBadge" class="status-badge badge-ng">未打刻（入力ロック中）</span>
+        </div>
         <div class="form-group">
-          <label for="startMeter">始業時メーター (km)<span class="req">※手入力</span></label>
+          <label for="startMeter">始業時メーター (km)<span class="req">※必須</span></label>
           <input type="number" id="startMeter" placeholder="例: 123450" onchange="saveDraft()">
         </div>
+        <button type="button" id="startStampBtn" class="stamp-btn btn-start" onclick="processStamp('出勤')">☀️ 始業メーター入力＆出勤QR打刻</button>
+      </div>
+
+      <!-- 退勤打刻ブロック -->
+      <div style="background: #fff0f1; padding: 10px; border-radius: 6px;">
+        <div style="font-weight: bold; font-size: 14px; color: #dc3545; margin-bottom: 6px;">
+          🌙 夕方の退勤手続き
+          <span id="endStatusBadge" class="status-badge badge-ng">未打刻（送信ロック中）</span>
+        </div>
         <div class="form-group">
-          <label for="endMeter">終業時メーター (km)<span class="req">※手入力</span></label>
+          <label for="endMeter">終業時メーター (km)<span class="req">※必須</span></label>
           <input type="number" id="endMeter" placeholder="例: 123580" onchange="saveDraft()">
         </div>
-      </div>
-      <div class="row">
-        <button type="button" class="stamp-btn btn-start" onclick="processStamp('出勤')">☀️ 出勤QR打刻</button>
-        <button type="button" class="stamp-btn btn-end" onclick="processStamp('退勤')">🌙 退勤QR打刻</button>
+        <button type="button" id="endStampBtn" class="stamp-btn btn-end" onclick="processStamp('退勤')">🌙 終業メーター入力＆退勤QR打刻</button>
       </div>
     </div>
 
-    <form id="reportForm">
-      <!-- 基本情報 -->
-      <div class="section-box">
-        <div class="section-title">1. 基本情報</div>
-        <div class="form-group">
-          <label for="date">日付<span class="req">※必須</span></label>
-          <input type="date" id="date" required onchange="saveDraft()">
-        </div>
-        <div class="form-group">
-          <label for="vehicleNo">車両番号<span class="req">※必須</span></label>
-          <select id="vehicleNo" required onchange="saveDraft()"><option value="">マスタ読み込み中...</option></select>
-        </div>
-      </div>
-
-      <!-- 現場・運行詳細 (最大7便) -->
-      <div class="section-box">
-        <div class="section-title">2. 現場・運行明細（各便ごとに一時保存可能）</div>
-        <div id="runBlocksContainer"></div>
-        <button type="button" class="btn-draft" onclick="manualSaveDraft()">💾 全便の入力を一時保存する</button>
-        <div id="draftSaveMsg" class="draft-msg">✔ 入力内容を一時保存しました</div>
-      </div>
-
-      <!-- 休憩時間 ＆ 給油（最後尾） -->
-      <div class="section-box">
-        <div class="section-title">3. 休憩時間 ＆ 軽油給油</div>
-        <div class="row">
+    <!-- 出勤打刻完了後に表示される日報入力エリア -->
+    <div id="reportArea">
+      <form id="reportForm">
+        <!-- 基本情報 -->
+        <div class="section-box">
+          <div class="section-title">1. 基本情報</div>
           <div class="form-group">
-            <label for="break1Start">休憩1（開始）<span class="req">※選択</span></label>
-            <select id="break1Start" class="time-select" onchange="saveDraft()"><option value="">選択</option></select>
+            <label for="date">日付<span class="req">※必須</span></label>
+            <input type="date" id="date" required onchange="saveDraft()">
           </div>
           <div class="form-group">
-            <label for="break1End">休憩1（終了）<span class="req">※選択</span></label>
-            <select id="break1End" class="time-select" onchange="saveDraft()"><option value="">選択</option></select>
+            <label for="vehicleNo">車両番号<span class="req">※QR読取で自動入力</span></label>
+            <select id="vehicleNo" required onchange="saveDraft()"><option value="">マスタ読み込み中...</option></select>
           </div>
         </div>
 
-        <!-- 休憩2（残業用枠） -->
-        <div class="row">
-          <div class="form-group">
-            <label for="break2Start">休憩2（開始）<span class="req">※残業時等</span></label>
-            <select id="break2Start" class="time-select" onchange="saveDraft()"><option value="">選択</option></select>
+        <!-- 現場・運行詳細 (最大7便) -->
+        <div class="section-box">
+          <div class="section-title">2. 現場・運行明細（各便ごとに一時保存可能）</div>
+          <div id="runBlocksContainer"></div>
+          <button type="button" class="btn-draft" onclick="manualSaveDraft()">💾 全便の入力を一時保存する</button>
+          <div id="draftSaveMsg" class="draft-msg">✔ 入力内容を一時保存しました</div>
+        </div>
+
+        <!-- 休憩時間 ＆ 給油（最後尾） -->
+        <div class="section-box">
+          <div class="section-title">3. 休憩時間 ＆ 軽油給油</div>
+          <div class="row">
+            <div class="form-group">
+              <label for="break1Start">休憩1（開始）<span class="req">※選択</span></label>
+              <select id="break1Start" class="time-select" onchange="saveDraft()"><option value="">選択</option></select>
+            </div>
+            <div class="form-group">
+              <label for="break1End">休憩1（終了）<span class="req">※選択</span></label>
+              <select id="break1End" class="time-select" onchange="saveDraft()"><option value="">選択</option></select>
+            </div>
           </div>
+
+          <div class="row">
+            <div class="form-group">
+              <label for="break2Start">休憩2（開始）<span class="req">※残業時等</span></label>
+              <select id="break2Start" class="time-select" onchange="saveDraft()"><option value="">選択</option></select>
+            </div>
+            <div class="form-group">
+              <label for="break2End">休憩2（終了）<span class="req">※残業時等</span></label>
+              <select id="break2End" class="time-select" onchange="saveDraft()"><option value="">選択</option></select>
+            </div>
+          </div>
+
           <div class="form-group">
-            <label for="break2End">休憩2（終了）<span class="req">※残業時等</span></label>
-            <select id="break2End" class="time-select" onchange="saveDraft()"><option value="">選択</option></select>
+            <label for="fuel">軽油 給油量（L）<span class="req">※給油時のみ</span></label>
+            <input type="number" id="fuel" step="0.1" placeholder="例: 50.5" onchange="saveDraft()">
           </div>
         </div>
 
-        <div class="form-group">
-          <label for="fuel">軽油 給油量（L）<span class="req">※給油時のみ</span></label>
-          <input type="number" id="fuel" step="0.1" placeholder="例: 50.5" onchange="saveDraft()">
-        </div>
-      </div>
-
-      <button type="button" id="submitBtn" onclick="submitData()">日報を送信する</button>
-    </form>
+        <!-- 退勤打刻完了までdisabledでロック -->
+        <button type="button" id="submitBtn" onclick="submitData()" disabled>退勤打刻を完了すると日報を送信できます</button>
+      </form>
+    </div>
   </div>
 
   <script>
@@ -134,6 +155,8 @@
     let currentLineUserId = "";
     let currentDriverName = "";
     let globalClientItemsMap = {};
+    let isStartStamped = false;
+    let isEndStamped = false;
 
     document.getElementById('date').valueAsDate = new Date();
 
@@ -261,13 +284,44 @@
       }
     }
 
-    // --- 一時保存（ローカルストレージ）機能 ---
+    // ゲート制御状態のUI更新
+    function updateGateUI() {
+      const startBadge = document.getElementById('startStatusBadge');
+      const endBadge = document.getElementById('endStatusBadge');
+      const reportArea = document.getElementById('reportArea');
+      const submitBtn = document.getElementById('submitBtn');
+
+      if (isStartStamped) {
+        startBadge.className = "status-badge badge-ok";
+        startBadge.innerText = "✔ 出勤打刻済み";
+        reportArea.style.display = "block";
+      } else {
+        startBadge.className = "status-badge badge-ng";
+        startBadge.innerText = "未打刻（入力ロック中）";
+        reportArea.style.display = "none";
+      }
+
+      if (isEndStamped) {
+        endBadge.className = "status-badge badge-ok";
+        endBadge.innerText = "✔ 退勤打刻済み";
+        submitBtn.disabled = false;
+        submitBtn.innerText = "日報を送信する";
+      } else {
+        endBadge.className = "status-badge badge-ng";
+        endBadge.innerText = "未打刻（送信ロック中）";
+        submitBtn.disabled = true;
+        submitBtn.innerText = "退勤打刻を完了すると日報を送信できます";
+      }
+    }
+
     function saveDraft() {
       const draftData = {
         date: document.getElementById('date').value,
         vehicleNo: document.getElementById('vehicleNo').value,
         startMeter: document.getElementById('startMeter').value,
         endMeter: document.getElementById('endMeter').value,
+        isStartStamped: isStartStamped,
+        isEndStamped: isEndStamped,
         break1Start: document.getElementById('break1Start').value,
         break1End: document.getElementById('break1End').value,
         break2Start: document.getElementById('break2Start').value,
@@ -311,6 +365,9 @@
         if (draft.vehicleNo) document.getElementById('vehicleNo').value = draft.vehicleNo;
         if (draft.startMeter) document.getElementById('startMeter').value = draft.startMeter;
         if (draft.endMeter) document.getElementById('endMeter').value = draft.endMeter;
+        if (draft.isStartStamped) isStartStamped = true;
+        if (draft.isEndStamped) isEndStamped = true;
+
         if (draft.break1Start) document.getElementById('break1Start').value = draft.break1Start;
         if (draft.break1End) document.getElementById('break1End').value = draft.break1End;
         if (draft.break2Start) document.getElementById('break2Start').value = draft.break2Start;
@@ -340,6 +397,8 @@
             if (document.getElementById(`quantity_${i}`)) document.getElementById(`quantity_${i}`).value = r.quantity || "";
           });
         }
+
+        updateGateUI();
       } catch (e) {
         console.error("下書き復元エラー:", e);
       }
@@ -419,7 +478,6 @@
             res.clients.forEach(c => { sel.innerHTML += `<option value="${c}">${c}</option>`; });
           });
 
-          // マスタ読み込み後に下書きデータを自動復元
           restoreDraft();
         }
       });
@@ -427,7 +485,15 @@
 
     function processStamp(stampType) {
       if (!currentDriverName) { alert("ドライバー情報が確認できていません。"); return; }
-      const meterVal = (stampType === '出勤') ? document.getElementById('startMeter').value : document.getElementById('endMeter').value;
+      
+      const meterInput = (stampType === '出勤') ? document.getElementById('startMeter') : document.getElementById('endMeter');
+      const meterVal = meterInput.value;
+
+      if (!meterVal || Number(meterVal) <= 0) {
+        alert(`【入力必須】${stampType}時メーターの数値を正しく入力してからQR打刻を行ってください。`);
+        meterInput.focus();
+        return;
+      }
 
       if (!liff.scanCodeV2) { alert("QRスキャン機能が利用できません。"); return; }
 
@@ -435,6 +501,11 @@
         if (result.value) {
           const scannedVehicleNo = result.value;
           document.getElementById('vehicleNo').value = scannedVehicleNo;
+          
+          if (stampType === '出勤') isStartStamped = true;
+          if (stampType === '退勤') isEndStamped = true;
+
+          updateGateUI();
           saveDraft();
           alert("打刻データを送信中です...");
 
@@ -456,9 +527,17 @@
     }
 
     function submitData() {
-      if (!currentDriverName) { alert("ドライバー情報が確認できないため送信できません。"); return; }
+      if (!isStartStamped) {
+        alert("出勤打刻が完了していません。始業メーターを入力して出勤QR打刻を行ってください。");
+        return;
+      }
+      if (!isEndStamped) {
+        alert("退勤打刻が完了していません。終業メーターを入力して退勤QR打刻を行ってください。");
+        return;
+      }
+
       const vehicleNo = document.getElementById('vehicleNo').value;
-      if (!vehicleNo) { alert("車両番号を選択してください。"); return; }
+      if (!vehicleNo) { alert("車両番号が確認できません。再度打刻を行ってください。"); return; }
 
       const runs = [];
       for (let i = 1; i <= 7; i++) {
@@ -509,7 +588,6 @@
         document.getElementById('submitBtn').innerText = "日報を送信する";
         document.getElementById('submitBtn').disabled = false;
         if (res.success) {
-          // 送信成功時に一時保存の下書きをクリア
           localStorage.removeItem('nippo_draft_data');
           liff.closeWindow();
         }
