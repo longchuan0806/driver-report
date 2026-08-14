@@ -22,7 +22,7 @@
     .stamp-btn { margin-top: 0; font-size: 14px; padding: 10px; }
     .btn-start { background: #007bff; }
     .btn-end { background: #dc3545; }
-    .preview-img { width: 100%; max-height: 120px; object-fit: cover; margin-top: 8px; display: none; border-radius: 6px; }
+    .btn-draft { background: #6c757d; font-size: 14px; padding: 8px; margin-top: 8px; }
     .req { color: red; font-size: 11px; margin-left: 3px; font-weight: normal; }
     .add-check-box { background: #f8f9fa; border: 1px dashed #007bff; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
     .add-check-box label { color: #007bff; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; }
@@ -31,6 +31,7 @@
     #runBlock1 { display: block; }
     #mainContent { display: none; }
     #initRegisterArea { display: none; }
+    .draft-msg { font-size: 12px; color: #28a745; text-align: center; margin-top: 4px; display: none; }
   </style>
 </head>
 <body>
@@ -50,21 +51,22 @@
   </div>
 
   <div id="mainContent">
-    <!-- 打刻＆メーター写真送信エリア -->
+    <!-- 打刻エリア（始業・終業メーター値） -->
     <div class="stamp-box">
-      <div class="section-title">【出退勤打刻 ＆ メーター撮影】</div>
-      <div class="form-group">
-        <label for="meterVal">走行メーター値 (km)</label>
-        <input type="number" id="meterVal" placeholder="例: 123456">
-      </div>
-      <div class="form-group">
-        <label for="meterPhoto">メーター写真撮影</label>
-        <input type="file" id="meterPhoto" accept="image/*" capture="environment" onchange="previewImage(this)">
-        <img id="imgPreview" class="preview-img" alt="プレビュー">
+      <div class="section-title">【出退勤打刻 ＆ メーター入力】</div>
+      <div class="row">
+        <div class="form-group">
+          <label for="startMeter">始業時メーター (km)<span class="req">※手入力</span></label>
+          <input type="number" id="startMeter" placeholder="例: 123450" onchange="saveDraft()">
+        </div>
+        <div class="form-group">
+          <label for="endMeter">終業時メーター (km)<span class="req">※手入力</span></label>
+          <input type="number" id="endMeter" placeholder="例: 123580" onchange="saveDraft()">
+        </div>
       </div>
       <div class="row">
-        <button type="button" class="stamp-btn btn-start" onclick="processStamp('出勤')">☀️ 出勤打刻</button>
-        <button type="button" class="stamp-btn btn-end" onclick="processStamp('退勤')">🌙 退勤打刻</button>
+        <button type="button" class="stamp-btn btn-start" onclick="processStamp('出勤')">☀️ 出勤QR打刻</button>
+        <button type="button" class="stamp-btn btn-end" onclick="processStamp('退勤')">🌙 退勤QR打刻</button>
       </div>
     </div>
 
@@ -74,18 +76,20 @@
         <div class="section-title">1. 基本情報</div>
         <div class="form-group">
           <label for="date">日付<span class="req">※必須</span></label>
-          <input type="date" id="date" required>
+          <input type="date" id="date" required onchange="saveDraft()">
         </div>
         <div class="form-group">
           <label for="vehicleNo">車両番号<span class="req">※必須</span></label>
-          <select id="vehicleNo" required><option value="">マスタ読み込み中...</option></select>
+          <select id="vehicleNo" required onchange="saveDraft()"><option value="">マスタ読み込み中...</option></select>
         </div>
       </div>
 
       <!-- 現場・運行詳細 (最大7便) -->
       <div class="section-box">
-        <div class="section-title">2. 現場・運行明細（最大7件）</div>
+        <div class="section-title">2. 現場・運行明細（各便ごとに一時保存可能）</div>
         <div id="runBlocksContainer"></div>
+        <button type="button" class="btn-draft" onclick="manualSaveDraft()">💾 全便の入力を一時保存する</button>
+        <div id="draftSaveMsg" class="draft-msg">✔ 入力内容を一時保存しました</div>
       </div>
 
       <!-- 休憩時間 ＆ 給油（最後尾） -->
@@ -93,17 +97,30 @@
         <div class="section-title">3. 休憩時間 ＆ 軽油給油</div>
         <div class="row">
           <div class="form-group">
-            <label for="breakStart">休憩（開始）<span class="req">※選択</span></label>
-            <select id="breakStart" class="time-select"><option value="">選択</option></select>
+            <label for="break1Start">休憩1（開始）<span class="req">※選択</span></label>
+            <select id="break1Start" class="time-select" onchange="saveDraft()"><option value="">選択</option></select>
           </div>
           <div class="form-group">
-            <label for="breakEnd">休憩（終了）<span class="req">※選択</span></label>
-            <select id="breakEnd" class="time-select"><option value="">選択</option></select>
+            <label for="break1End">休憩1（終了）<span class="req">※選択</span></label>
+            <select id="break1End" class="time-select" onchange="saveDraft()"><option value="">選択</option></select>
           </div>
         </div>
+
+        <!-- 休憩2（残業用枠） -->
+        <div class="row">
+          <div class="form-group">
+            <label for="break2Start">休憩2（開始）<span class="req">※残業時等</span></label>
+            <select id="break2Start" class="time-select" onchange="saveDraft()"><option value="">選択</option></select>
+          </div>
+          <div class="form-group">
+            <label for="break2End">休憩2（終了）<span class="req">※残業時等</span></label>
+            <select id="break2End" class="time-select" onchange="saveDraft()"><option value="">選択</option></select>
+          </div>
+        </div>
+
         <div class="form-group">
           <label for="fuel">軽油 給油量（L）<span class="req">※給油時のみ</span></label>
-          <input type="number" id="fuel" step="0.1" placeholder="例: 50.5">
+          <input type="number" id="fuel" step="0.1" placeholder="例: 50.5" onchange="saveDraft()">
         </div>
       </div>
 
@@ -116,8 +133,7 @@
 
     let currentLineUserId = "";
     let currentDriverName = "";
-    let base64Photo = "";
-    let globalClientItemsMap = {}; // 得意先と品名の連動用マップ保持変数
+    let globalClientItemsMap = {};
 
     document.getElementById('date').valueAsDate = new Date();
 
@@ -145,7 +161,7 @@
           ${i > 1 ? `
             <div class="add-check-box" id="addCheckBox${i}" style="${i > 2 ? 'display:none;' : ''}">
               <label>
-                <input type="checkbox" id="toggleRun${i}" onchange="toggleRunBlock(${i})">
+                <input type="checkbox" id="toggleRun${i}" onchange="toggleRunBlock(${i}); saveDraft();">
                 ➕ ${i}便目の運行データを追加する
               </label>
             </div>
@@ -156,47 +172,47 @@
             <div class="row">
               <div class="form-group">
                 <label for="workStart_${i}">作業（開始）<span class="req">※選択</span></label>
-                <select id="workStart_${i}">${timeOpts}</select>
+                <select id="workStart_${i}" onchange="saveDraft()">${timeOpts}</select>
               </div>
               <div class="form-group">
                 <label for="workEnd_${i}">作業（終了）<span class="req">※選択</span></label>
-                <select id="workEnd_${i}">${timeOpts}</select>
+                <select id="workEnd_${i}" onchange="saveDraft()">${timeOpts}</select>
               </div>
             </div>
 
             <div class="form-group">
               <label for="client_${i}">得意先<span class="req">※選択</span></label>
-              <select id="client_${i}" class="client-master-select" onchange="onClientChanged(${i})">
+              <select id="client_${i}" class="client-master-select" onchange="onClientChanged(${i}); saveDraft();">
                 <option value="">読み込み中...</option>
               </select>
             </div>
 
             <div class="form-group">
               <label for="site_${i}">現地名<span class="req">※手入力</span></label>
-              <input type="text" id="site_${i}" placeholder="例: 〇〇作業所">
+              <input type="text" id="site_${i}" placeholder="例: 〇〇作業所" onchange="saveDraft()">
             </div>
 
             <div class="row">
               <div class="form-group">
                 <label for="fromLoc_${i}">発地<span class="req">※手入力</span></label>
-                <input type="text" id="fromLoc_${i}" placeholder="例: 本社プラント">
+                <input type="text" id="fromLoc_${i}" placeholder="例: 本社プラント" onchange="saveDraft()">
               </div>
               <div class="form-group">
                 <label for="toLoc_${i}">着地<span class="req">※手入力</span></label>
-                <input type="text" id="toLoc_${i}" placeholder="例: 〇〇現場">
+                <input type="text" id="toLoc_${i}" placeholder="例: 〇〇現場" onchange="saveDraft()">
               </div>
             </div>
 
             <div class="row">
               <div class="form-group">
                 <label for="itemName_${i}">品名<span class="req">※得意先選択後に自動表示</span></label>
-                <select id="itemName_${i}" class="item-master-select">
+                <select id="itemName_${i}" class="item-master-select" onchange="saveDraft()">
                   <option value="">まず得意先を選択してください</option>
                 </select>
               </div>
               <div class="form-group">
                 <label for="quantity_${i}">数量<span class="req">※手入力/スクロール</span></label>
-                <input type="number" id="quantity_${i}" step="0.1" placeholder="0">
+                <input type="number" id="quantity_${i}" step="0.1" placeholder="0" onchange="saveDraft()">
               </div>
             </div>
           </div>
@@ -204,15 +220,15 @@
       }
       container.innerHTML = html;
 
-      document.getElementById('breakStart').innerHTML = timeOpts;
-      document.getElementById('breakEnd').innerHTML = timeOpts;
+      document.getElementById('break1Start').innerHTML = timeOpts;
+      document.getElementById('break1End').innerHTML = timeOpts;
+      document.getElementById('break2Start').innerHTML = timeOpts;
+      document.getElementById('break2End').innerHTML = timeOpts;
     }
 
-    // 得意先が選択された際に、その得意先に紐付く品名のみを動的セットする関数
     function onClientChanged(runIndex) {
       const selectedClient = document.getElementById(`client_${runIndex}`).value;
       const itemSelect = document.getElementById(`itemName_${runIndex}`);
-      
       itemSelect.innerHTML = "";
 
       if (!selectedClient) {
@@ -242,6 +258,90 @@
       } else {
         block.style.display = "none";
         if (nextCheckBox) nextCheckBox.style.display = "none";
+      }
+    }
+
+    // --- 一時保存（ローカルストレージ）機能 ---
+    function saveDraft() {
+      const draftData = {
+        date: document.getElementById('date').value,
+        vehicleNo: document.getElementById('vehicleNo').value,
+        startMeter: document.getElementById('startMeter').value,
+        endMeter: document.getElementById('endMeter').value,
+        break1Start: document.getElementById('break1Start').value,
+        break1End: document.getElementById('break1End').value,
+        break2Start: document.getElementById('break2Start').value,
+        break2End: document.getElementById('break2End').value,
+        fuel: document.getElementById('fuel').value,
+        runs: []
+      };
+
+      for (let i = 1; i <= 7; i++) {
+        const toggle = document.getElementById(`toggleRun${i}`);
+        const isChecked = (i === 1) || (toggle && toggle.checked);
+        draftData.runs.push({
+          active: isChecked,
+          workStart: document.getElementById(`workStart_${i}`).value,
+          workEnd: document.getElementById(`workEnd_${i}`).value,
+          client: document.getElementById(`client_${i}`).value,
+          site: document.getElementById(`site_${i}`).value,
+          fromLoc: document.getElementById(`fromLoc_${i}`).value,
+          toLoc: document.getElementById(`toLoc_${i}`).value,
+          itemName: document.getElementById(`itemName_${i}`).value,
+          quantity: document.getElementById(`quantity_${i}`).value
+        });
+      }
+
+      localStorage.setItem('nippo_draft_data', JSON.stringify(draftData));
+    }
+
+    function manualSaveDraft() {
+      saveDraft();
+      const msg = document.getElementById('draftSaveMsg');
+      msg.style.display = 'block';
+      setTimeout(() => { msg.style.display = 'none'; }, 2500);
+    }
+
+    function restoreDraft() {
+      const raw = localStorage.getItem('nippo_draft_data');
+      if (!raw) return;
+      try {
+        const draft = JSON.parse(raw);
+        if (draft.date) document.getElementById('date').value = draft.date;
+        if (draft.vehicleNo) document.getElementById('vehicleNo').value = draft.vehicleNo;
+        if (draft.startMeter) document.getElementById('startMeter').value = draft.startMeter;
+        if (draft.endMeter) document.getElementById('endMeter').value = draft.endMeter;
+        if (draft.break1Start) document.getElementById('break1Start').value = draft.break1Start;
+        if (draft.break1End) document.getElementById('break1End').value = draft.break1End;
+        if (draft.break2Start) document.getElementById('break2Start').value = draft.break2Start;
+        if (draft.break2End) document.getElementById('break2End').value = draft.break2End;
+        if (draft.fuel) document.getElementById('fuel').value = draft.fuel;
+
+        if (draft.runs && Array.isArray(draft.runs)) {
+          draft.runs.forEach((r, idx) => {
+            const i = idx + 1;
+            if (i > 1 && r.active) {
+              const toggle = document.getElementById(`toggleRun${i}`);
+              if (toggle) {
+                toggle.checked = true;
+                toggleRunBlock(i);
+              }
+            }
+            if (document.getElementById(`workStart_${i}`)) document.getElementById(`workStart_${i}`).value = r.workStart || "";
+            if (document.getElementById(`workEnd_${i}`)) document.getElementById(`workEnd_${i}`).value = r.workEnd || "";
+            if (document.getElementById(`client_${i}`)) {
+              document.getElementById(`client_${i}`).value = r.client || "";
+              onClientChanged(i);
+            }
+            if (document.getElementById(`site_${i}`)) document.getElementById(`site_${i}`).value = r.site || "";
+            if (document.getElementById(`fromLoc_${i}`)) document.getElementById(`fromLoc_${i}`).value = r.fromLoc || "";
+            if (document.getElementById(`toLoc_${i}`)) document.getElementById(`toLoc_${i}`).value = r.toLoc || "";
+            if (document.getElementById(`itemName_${i}`)) document.getElementById(`itemName_${i}`).value = r.itemName || "";
+            if (document.getElementById(`quantity_${i}`)) document.getElementById(`quantity_${i}`).value = r.quantity || "";
+          });
+        }
+      } catch (e) {
+        console.error("下書き復元エラー:", e);
       }
     }
 
@@ -308,64 +408,48 @@
         body: JSON.stringify({ action: "getMasterData" })
       }).then(res => res.json()).then(res => {
         if (res.success) {
-          // 車両選択肢の反映
           const vehicleSelect = document.getElementById('vehicleNo');
           vehicleSelect.innerHTML = '<option value="">選択してください</option>';
           res.vehicles.forEach(v => { vehicleSelect.innerHTML += `<option value="${v}">${v}</option>`; });
 
-          // 得意先と品名の連動マップをグローバル変数に保存
           globalClientItemsMap = res.clientItemsMap || {};
 
-          // 得意先選択肢を全便にセット
           document.querySelectorAll('.client-master-select').forEach(sel => {
             sel.innerHTML = '<option value="">選択してください</option>';
             res.clients.forEach(c => { sel.innerHTML += `<option value="${c}">${c}</option>`; });
           });
+
+          // マスタ読み込み後に下書きデータを自動復元
+          restoreDraft();
         }
       });
     }
 
-    function previewImage(input) {
-      if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          base64Photo = e.target.result;
-          const img = document.getElementById('imgPreview');
-          img.src = base64Photo;
-          img.style.display = 'block';
-        };
-        reader.readAsDataURL(input.files[0]);
-      }
-    }
-
     function processStamp(stampType) {
       if (!currentDriverName) { alert("ドライバー情報が確認できていません。"); return; }
-      const meterVal = document.getElementById('meterVal').value;
+      const meterVal = (stampType === '出勤') ? document.getElementById('startMeter').value : document.getElementById('endMeter').value;
+
       if (!liff.scanCodeV2) { alert("QRスキャン機能が利用できません。"); return; }
 
       liff.scanCodeV2().then(result => {
         if (result.value) {
           const scannedVehicleNo = result.value;
           document.getElementById('vehicleNo').value = scannedVehicleNo;
-          alert("画像と打刻データを送信中です...");
+          saveDraft();
+          alert("打刻データを送信中です...");
 
           fetch(GAS_WEBAPP_URL, {
             method: "POST",
             body: JSON.stringify({
-              action: "recordTimestampWithPhoto",
+              action: "recordTimestamp",
               lineUserId: currentLineUserId,
               driverName: currentDriverName,
               type: stampType,
               vehicleNo: scannedVehicleNo,
-              meterValue: meterVal,
-              photoData: base64Photo
+              meterValue: meterVal
             })
           }).then(res => res.json()).then(res => {
             alert(res.message);
-            document.getElementById('meterVal').value = "";
-            document.getElementById('meterPhoto').value = "";
-            document.getElementById('imgPreview').style.display = "none";
-            base64Photo = "";
           });
         }
       });
@@ -404,8 +488,12 @@
         driverName: currentDriverName,
         date: document.getElementById('date').value,
         vehicleNo: vehicleNo,
-        breakStart: document.getElementById('breakStart').value,
-        breakEnd: document.getElementById('breakEnd').value,
+        startMeter: document.getElementById('startMeter').value,
+        endMeter: document.getElementById('endMeter').value,
+        break1Start: document.getElementById('break1Start').value,
+        break1End: document.getElementById('break1End').value,
+        break2Start: document.getElementById('break2Start').value,
+        break2End: document.getElementById('break2End').value,
         fuel: document.getElementById('fuel').value,
         runs: runs
       };
@@ -420,7 +508,11 @@
         alert(res.message);
         document.getElementById('submitBtn').innerText = "日報を送信する";
         document.getElementById('submitBtn').disabled = false;
-        if (res.success) liff.closeWindow();
+        if (res.success) {
+          // 送信成功時に一時保存の下書きをクリア
+          localStorage.removeItem('nippo_draft_data');
+          liff.closeWindow();
+        }
       });
     }
   </script>
